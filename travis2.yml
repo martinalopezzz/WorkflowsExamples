@@ -1,0 +1,56 @@
+language: python
+python:
+  - "3.11"
+  - "3.12"
+
+services:
+  - mysql
+
+before_install:
+  - mysql -e 'CREATE DATABASE uvlhubdb_test;'  # Crear la base de datos de prueba
+  - mysql -e 'CREATE USER "uvlhub_user"@"localhost" IDENTIFIED BY "uvlhub_password";'  # Crear el usuario
+  - mysql -e 'GRANT ALL PRIVILEGES ON uvlhubdb_test.* TO "uvlhub_user"@"localhost";'  # Otorgar privilegios
+  - mysql -e 'FLUSH PRIVILEGES;'
+
+install:
+  - pip install --upgrade pip
+  - pip install -r requirements.txt
+
+before_script:
+  - export FLASK_ENV=testing
+  - export MARIADB_HOSTNAME=127.0.0.1
+  - export MARIADB_PORT=3306
+  - export MARIADB_TEST_DATABASE=uvlhubdb_test
+  - export MARIADB_USER=uvlhub_user
+  - export MARIADB_PASSWORD=uvlhub_password
+
+script:
+  # Ejecuta solo las pruebas del módulo 'store'
+  - pytest app/modules/store/ --ignore-glob='*selenium*' # Ajusta la ruta según la ubicación de tus pruebas
+  - coverage run -m pytest app/modules/store/ --ignore-glob='*selenium*' # Si estás usando cobertura de pruebas
+  - coverage report
+  - coverage xml
+
+after_success:
+  # Aquí puedes agregar pasos adicionales para el manejo de la cobertura, si es necesario.
+  - python-codacy-coverage -r coverage.xml  # Solo si usas Codacy para análisis de cobertura
+
+after_failure:
+  - echo "Las pruebas han fallado."  # Mensaje en caso de fallo en las pruebas
+
+notifications:
+  email:
+    recipients:
+      - tu-email@dominio.com
+    on_failure: always  # Notificación en caso de fallo de pruebas
+    on_success: never  # Sin notificación si las pruebas son exitosas
+
+# Definir los eventos que activan el flujo de trabajo:
+# Se ejecutará cuando haya un push o un pull_request a la rama 'master'
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
