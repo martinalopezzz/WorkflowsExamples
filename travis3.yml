@@ -1,0 +1,59 @@
+language: python
+
+python:
+  - "3.11"
+  - "3.12"
+
+services:
+  - mysql
+
+before_install:
+  # Crear la base de datos de prueba
+  - mysql -e 'CREATE DATABASE uvlhubdb_test;'  # Crear la base de datos
+  - mysql -e 'CREATE USER "uvlhub_user"@"localhost" IDENTIFIED BY "uvlhub_password";'  # Crear el usuario
+  - mysql -e 'GRANT ALL PRIVILEGES ON uvlhubdb_test.* TO "uvlhub_user"@"localhost";'  # Dar privilegios al usuario
+  - mysql -e 'FLUSH PRIVILEGES;'  # Aplicar cambios
+
+install:
+  - pip install --upgrade pip  # Asegurarse de que pip esté actualizado
+  - pip install -r requirements.txt  # Instalar todas las dependencias del proyecto
+
+before_script:
+  # Configurar las variables de entorno necesarias para las pruebas
+  - export FLASK_ENV=testing  # Definir el entorno como 'testing'
+  - export MARIADB_HOSTNAME=127.0.0.1  # Host de la base de datos
+  - export MARIADB_PORT=3306  # Puerto de la base de datos
+  - export MARIADB_TEST_DATABASE=uvlhubdb_test  # Base de datos de pruebas
+  - export MARIADB_USER=uvlhub_user  # Usuario de la base de datos
+  - export MARIADB_PASSWORD=uvlhub_password  # Contraseña del usuario
+
+script:
+  # Ejecutar todas las pruebas del proyecto
+  - pytest app/modules/  # Ejecutar todas las pruebas del proyecto (ajustar la ruta según la ubicación de tus pruebas)
+  - coverage run -m pytest app/modules/  # Ejecutar las pruebas con cobertura de código
+  - coverage report  # Mostrar el reporte de cobertura
+  - coverage xml  # Generar un archivo XML de cobertura (útil para integraciones como Codacy)
+
+after_success:
+  # Si las pruebas pasan, se sube el informe de cobertura a Codacy (si se está utilizando Codacy)
+  - python-codacy-coverage -r coverage.xml  # Subir el informe de cobertura a Codacy (si se está utilizando)
+
+after_failure:
+  # En caso de fallo de las pruebas, imprimir un mensaje
+  - echo "Las pruebas han fallado."
+
+notifications:
+  email:
+    recipients:
+      - tu-email@dominio.com  # Configura tu correo para notificaciones
+    on_failure: always  # Recibirás un correo si las pruebas fallan
+    on_success: never  # No recibirás correos si las pruebas son exitosas
+
+# Activar el flujo de trabajo cuando haya un `push` o un `pull_request` a la rama `master`
+on:
+  push:
+    branches:
+      - master  # Solo se ejecutará en cambios a la rama master
+  pull_request:
+    branches:
+      - master  # También se ejecutará en pull requests hacia la rama master
