@@ -1,0 +1,54 @@
+# Especifica el lenguaje y la distribución
+language: python
+dist: focal
+
+# Versiones de Python a probar
+python:
+  - "3.8"  # Asegúrate de usar una versión compatible con tu proyecto
+
+# Servicios adicionales necesarios
+services:
+  - xvfb  # Necesario para pruebas de Selenium
+  - redis-server  # Si Locust usa Redis como backend (opcional)
+
+# Variables de entorno (si necesitas alguna)
+env:
+  - DISPLAY=:99.0
+
+# Instalación de dependencias
+install:
+  - python -m pip install --upgrade pip
+  - pip install -r requirements.txt  # Archivo con dependencias del proyecto
+  - pip install pytest pytest-cov  # Dependencias para pruebas unitarias
+  - pip install locust  # Dependencias para pruebas de carga
+  - pip install selenium  # Dependencias para pruebas de interfaz
+  - wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+  - sudo dpkg -i google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y  # Instalar Chrome
+  - CHROMEDRIVER_VERSION=$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE)
+  - wget https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip
+  - unzip chromedriver_linux64.zip
+  - sudo mv chromedriver /usr/local/bin/
+  - sudo chmod +x /usr/local/bin/chromedriver
+
+# Comandos antes de las pruebas
+before_script:
+  - export PATH=$PATH:/usr/local/bin
+  - Xvfb :99 &  # Iniciar servidor virtual de pantalla
+
+# Script de pruebas
+script:
+  - pytest --cov=app  # Ejecución de pruebas unitarias y de integración con reporte de cobertura
+  - locust -f tests/load_tests.py --headless -u 10 -r 2 --run-time 1m  # Pruebas de carga (adaptar parámetros)
+  - python tests/selenium_tests.py  # Pruebas de interfaz (Selenium)
+
+# Reportes después de las pruebas (opcional)
+after_success:
+  - bash <(curl -s https://codecov.io/bash)  # Reportar cobertura a Codecov (si lo usas)
+
+# Notificaciones (opcional)
+notifications:
+  email:
+    recipients:
+      - tuemail@ejemplo.com
+    on_success: change
+    on_failure: always
